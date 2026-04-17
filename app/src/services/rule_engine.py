@@ -11,6 +11,7 @@ DEFAULT_RULES: List[RuleDefinition] = [
         description="Genera alerta si HR > 120 durante al menos 2 minutos seguidos.",
         expression="heart_rate > 120 for 2 minutes",
         severity=AlertSeverity.CRITICAL,
+        enabled=True,
     ),
     RuleDefinition(
         rule_id="spo2_low",
@@ -18,6 +19,7 @@ DEFAULT_RULES: List[RuleDefinition] = [
         description="Genera alerta si SpO2 cae por debajo de 90%.",
         expression="spo2 < 90",
         severity=AlertSeverity.WARNING,
+        enabled=True,
     ),
 ]
 
@@ -25,7 +27,7 @@ DEFAULT_RULES: List[RuleDefinition] = [
 def evaluate_rules(payload: TelemetryPayload) -> List[RuleAlert]:
     triggered = []
     # Rule: SpO2 low
-    if payload.spo2 < 90:
+    if payload.spo2 is not None and payload.spo2 < 90:
         triggered.append(
             RuleAlert(
                 alert_id=f"spo2_{payload.patient_id}_{int(payload.timestamp.timestamp())}",
@@ -38,10 +40,13 @@ def evaluate_rules(payload: TelemetryPayload) -> List[RuleAlert]:
             )
         )
     # Rule: HR > 120 for 2 minutes
-    if payload.heart_rate > 120:
+    if payload.heart_rate is not None and payload.heart_rate > 120:
         history = get_telemetry_history(payload.patient_id)
         window_start = payload.timestamp - timedelta(minutes=2)
-        high_count = sum(1 for t in history if t.timestamp >= window_start and t.heart_rate > 120)
+        high_count = sum(
+            1 for t in history
+            if t.timestamp >= window_start and t.heart_rate is not None and t.heart_rate > 120
+        )
         # check if there are at least 3+ points in 2 minutes for simulation
         if high_count >= 3:
             triggered.append(

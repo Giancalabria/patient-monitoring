@@ -11,6 +11,7 @@ PATIENT_INFO: Dict[str, PatientInfo] = {}
 PATIENT_STORE: Dict[str, PatientStatus] = {}
 ALERT_STORE: List[RuleAlert] = []
 TELEMETRY_HISTORY: Dict[str, List[TelemetryPayload]] = {}
+MONITORED_PATIENTS: Dict[str, str] = {}  # patient_id -> bed_id
 
 
 # ── CSV loader ─────────────────────────────────────────────────────────
@@ -109,3 +110,54 @@ def list_alerts() -> List[RuleAlert]:
 
 def get_telemetry_history(patient_id: str) -> List[TelemetryPayload]:
     return TELEMETRY_HISTORY.get(patient_id, [])
+
+
+# ── Monitoring activation ──────────────────────────────────────────────
+
+def activate_monitoring(patient_id: str, bed_id: str) -> PatientStatus:
+    """Activate monitoring for a patient at the given bed.
+
+    If the patient already exists in PATIENT_INFO, updates their bed_id.
+    If not, creates a minimal PatientStatus entry so telemetry can be received.
+    """
+    info = PATIENT_INFO.get(patient_id)
+
+    if info:
+        info.bed_id = bed_id
+
+    existing = PATIENT_STORE.get(patient_id)
+
+    status = PatientStatus(
+        patient_id=patient_id,
+        patient_info=info,
+        last_seen=existing.last_seen if existing else datetime.utcnow(),
+        heart_rate=existing.heart_rate if existing else None,
+        spo2=existing.spo2 if existing else None,
+        systolic_bp=existing.systolic_bp if existing else None,
+        diastolic_bp=existing.diastolic_bp if existing else None,
+        respiratory_rate=existing.respiratory_rate if existing else None,
+        temperature=existing.temperature if existing else None,
+        gcs=existing.gcs if existing else None,
+        status=existing.status if existing else "stable",
+        bed_id=bed_id,
+        ward=existing.ward if existing else None,
+        active_alerts=existing.active_alerts if existing else [],
+    )
+    PATIENT_STORE[patient_id] = status
+    MONITORED_PATIENTS[patient_id] = bed_id
+    return status
+
+
+def deactivate_monitoring(patient_id: str) -> bool:
+    """Stop monitoring a patient. Returns True if the patient was being monitored."""
+    removed = MONITORED_PATIENTS.pop(patient_id, None)
+    if removed is None:
+        return False
+    # Remove from the active patient store so they no longer appear in dashboards
+    PATIENT_STORE.pop(patient_id, None)
+    return True
+
+
+def is_monitoring_active(patient_id: str) -> bool:
+    """Check if a patient is currently being monitored."""
+    return patient_id in MONITORED_PATIENTS

@@ -3,8 +3,15 @@ from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException, Query
 
-from src.models import PatientStatus, TelemetryPayload
-from src.services.repository import get_patient_status, get_telemetry_history, list_patients
+from src.models import PatientStatus, TelemetryPayload, StartMonitoringRequest, StopMonitoringRequest, MonitoringResponse
+from src.services.repository import (
+    get_patient_status,
+    get_telemetry_history,
+    list_patients,
+    activate_monitoring,
+    deactivate_monitoring,
+    is_monitoring_active,
+)
 
 router = APIRouter(prefix="/patients", tags=["patients"])
 
@@ -50,3 +57,47 @@ def patient_telemetry_history(
     if to_dt:
         history = [t for t in history if t.timestamp <= to_dt]
     return history[:limit]
+
+
+@router.post(
+    "/monitor",
+    response_model=MonitoringResponse,
+    status_code=201,
+    summary="Activate patient monitoring",
+    description="Start monitoring a patient at a specific bed. This endpoint is consumed by the Internación module (M6) when a patient is admitted.",
+)
+def start_monitoring(body: StartMonitoringRequest):
+    if is_monitoring_active(body.patient_id):
+        raise HTTPException(
+            status_code=409,
+            detail=f"Patient {body.patient_id} is already being monitored",
+        )
+
+    activate_monitoring(body.patient_id, body.bed_id)
+    return MonitoringResponse(
+        patient_id=body.patient_id,
+        bed_id=body.bed_id,
+        monitoring=True,
+        message=f"Monitoring activated for patient {body.patient_id} at bed {body.bed_id}",
+    )
+
+
+@router.post(
+    "/monitor/stop",
+    response_model=MonitoringResponse,
+    summary="Stop patient monitoring",
+    description="Stop monitoring a patient. This endpoint is consumed by the Internación module (M6) when a patient is discharged.",
+)
+def stop_monitoring(body: StopMonitoringRequest):
+    if not is_monitoring_active(body.patient_id):
+        raise HTTPException(
+            status_code=404,
+            detail=f"Patient {body.patient_id} is not currently being monitored",
+        )
+
+    deactivate_monitoring(body.patient_id)
+    return MonitoringResponse(
+        patient_id=body.patient_id,
+        monitoring=False,
+        message=f"Monitoring stopped for patient {body.patient_id}",
+    )

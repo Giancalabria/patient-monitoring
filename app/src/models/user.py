@@ -169,5 +169,26 @@ class RuleEvaluationResponse(BaseModel):
     triggered_rules: List[RuleDefinition]
 
 
+# ── Monitoring ─────────────────────────────────────────────────────────
+
+class StartMonitoringRequest(BaseModel):
+    """Request body to activate monitoring for a patient."""
+    patient_id: str = Field(..., description="Patient identifier", examples=["P001"])
+    bed_id: str = Field(..., description="Bed where the patient is located", examples=["UTI-A-03"])
+
+
+class StopMonitoringRequest(BaseModel):
+    """Request body to stop monitoring for a patient."""
+    patient_id: str = Field(..., description="Patient identifier", examples=["P001"])
+
+
+class MonitoringResponse(BaseModel):
+    """Response confirming a monitoring state change."""
+    patient_id: str
+    bed_id: Optional[str] = None
+    monitoring: bool = Field(..., description="Whether the patient is currently being monitored")
+    message: str
+
+
 # Rebuild forward refs for PatientStatus -> RuleAlert
 PatientStatus.model_rebuild()

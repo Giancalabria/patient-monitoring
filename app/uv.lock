@@ -40,6 +40,7 @@ dependencies = [
     { name = "fastapi" },
     { name = "pydantic" },
     { name = "uvicorn" },
+    { name = "zen-engine" },
 ]
 
 [package.metadata]
@@ -47,6 +48,7 @@ requires-dist = [
     { name = "fastapi", specifier = ">=0.135.1" },
     { name = "pydantic", specifier = ">=2.12.5" },
     { name = "uvicorn", specifier = ">=0.41.0" },
+    { name = "zen-engine", specifier = ">=0.53.0" },
 ]
 
 [[package]]
@@ -216,4 +218,24 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/32/ce/eeb58ae4ac36fe09e3842eb02e0eb676bf2c53ae062b98f1b2531673efdd/uvicorn-0.41.0.tar.gz", hash = "sha256:09d11cf7008da33113824ee5a1c6422d89fbc2ff476540d69a34c87fab8b571a", size = 82633, upload-time = "2026-02-16T23:07:24.1Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/83/e4/d04a086285c20886c0daad0e026f250869201013d18f81d9ff5eada73a88/uvicorn-0.41.0-py3-none-any.whl", hash = "sha256:29e35b1d2c36a04b9e180d4007ede3bcb32a85fbdfd6c6aeb3f26839de088187", size = 68783, upload-time = "2026-02-16T23:07:22.357Z" },
+]
+
+[[package]]
+name = "zen-engine"
+version = "0.53.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/6e/e3/a0be526a8f5f9114091fe5d04dff3c682f811a4266f41dbe607f8a9f330b/zen_engine-0.53.0.tar.gz", hash = "sha256:a84eb098a7e752bcce77efea3f82b9f790476c5d74f668b17a4647626865d12f", size = 296954, upload-time = "2026-03-15T14:08:44.703Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/0e/af/d43e17e55b8d4b30d65bec32867bc5b0223972783a92bfe056b8f701e790/zen_engine-0.53.0-cp313-cp313-macosx_10_12_x86_64.whl", hash = "sha256:feb2ef41f25e0e6037cc0a968710532cbd5800f827478e35fb7f2e4ce41e5cda", size = 5150920, upload-time = "2026-03-15T14:08:03.922Z" },
+    { url = "https://files.pythonhosted.org/packages/05/56/a134480b6f082c2f7de46fe5f6610a4934e04d412814f5e46b12ece29f96/zen_engine-0.53.0-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:780c3a5c38e20fece1a85ac589476909b713167ed84ed6e6146b4f10736d9a34", size = 4864318, upload-time = "2026-03-15T14:08:05.547Z" },
+    { url = "https://files.pythonhosted.org/packages/ba/16/04f346eb871861c0bf360ec6dc6f4cb4e671a7ba638deef991ff4b6fa843/zen_engine-0.53.0-cp313-cp313-manylinux_2_28_aarch64.whl", hash = "sha256:710547e8b799cdb0b1fc17715a66f95aa23efeefe1a21f72da39b308a9fad607", size = 5094253, upload-time = "2026-03-15T14:08:07.123Z" },
+    { url = "https://files.pythonhosted.org/packages/6c/6f/275fa88936dc4747781357e1e79f7b1e922d4b0f233f3c256e710c66de11/zen_engine-0.53.0-cp313-cp313-manylinux_2_28_x86_64.whl", hash = "sha256:e1e6b8adbbd09a249c7dd3ec4a1020f273a00da07428e73bc66361ffc151c70a", size = 5392568, upload-time = "2026-03-15T14:08:09.295Z" },
+    { url = "https://files.pythonhosted.org/packages/22/0a/0f96f4f0570963bd99d181355068191b24b75928c6ad5205bc015ca37842/zen_engine-0.53.0-cp313-cp313-win_amd64.whl", hash = "sha256:ac1b6b59ff6c2a2712c71aaad900689d66aff4eb95b1596f6fcddebd7a58e8b8", size = 5529999, upload-time = "2026-03-15T14:08:11.265Z" },
+    { url = "https://files.pythonhosted.org/packages/cb/42/bf211eb8a5aad216b533e19b76f0309cc86fbbb639b6cd32b711b2a48d88/zen_engine-0.53.0-cp313-cp313t-manylinux_2_28_aarch64.whl", hash = "sha256:aeffccedeaf21448cd44504829e4a3ad2b4275edb0b921eeee757094b2e30be0", size = 5089777, upload-time = "2026-03-15T14:08:12.868Z" },
+    { url = "https://files.pythonhosted.org/packages/dc/67/3eefa02334a98c6d7a84f510fd7ee4478a01cffb64269dbb3abf261b7063/zen_engine-0.53.0-cp314-cp314-macosx_10_12_x86_64.whl", hash = "sha256:053b1ccaa4a2b33d48f811ddfc5efe10e76038e8a14188883971e811a03e90d6", size = 5151890, upload-time = "2026-03-15T14:08:14.812Z" },
+    { url = "https://files.pythonhosted.org/packages/27/81/11d7f1ac1f8717e33301392fd5e144ccd25ffc252cdd4558d77cf41d5afe/zen_engine-0.53.0-cp314-cp314-macosx_11_0_arm64.whl", hash = "sha256:67e3821efbc47a839a51d54dc3046b6429af5f43be89e05d9b9133ce97144cff", size = 4865021, upload-time = "2026-03-15T14:08:16.258Z" },
+    { url = "https://files.pythonhosted.org/packages/d5/1d/3ac91fcb4a69a440759cb2fd1e59756808a04d9753c7c11628cd714f3a7d/zen_engine-0.53.0-cp314-cp314-manylinux_2_28_aarch64.whl", hash = "sha256:f35affe2f838a6aaa657cbc1731e50d6670d3fe42359d2138d72550d5f0f4342", size = 5095083, upload-time = "2026-03-15T14:08:18.294Z" },
+    { url = "https://files.pythonhosted.org/packages/22/de/ee998f68efec931c572fc53a932c561721ebde72e324d875c912e24ed508/zen_engine-0.53.0-cp314-cp314-manylinux_2_28_x86_64.whl", hash = "sha256:848b9deadb2806ffd0544bd2b8d0cd04487df0310490a28f32cb2ab0526de19a", size = 5393019, upload-time = "2026-03-15T14:08:19.847Z" },
+    { url = "https://files.pythonhosted.org/packages/bb/06/65f0f19dc0e5c9afe1292dd9e20f36e6d787443405ee5e4a8427e9fbd330/zen_engine-0.53.0-cp314-cp314-win_amd64.whl", hash = "sha256:cca6e80e8a6d5729ccf7481300ddd5228c8b4ac8df247ad5d46198a6c0b4d43e", size = 5528854, upload-time = "2026-03-15T14:08:21.494Z" },
+    { url = "https://files.pythonhosted.org/packages/d2/dd/895a7285bae37b4b14855e0157f568db6df6c3da43c778afbd32dc1847a1/zen_engine-0.53.0-cp314-cp314t-manylinux_2_28_aarch64.whl", hash = "sha256:a91687e4f46129bfe5d5ada588035f02a7b2c1af6805b4d2726af00cf7a0a3c6", size = 5089879, upload-time = "2026-03-15T14:08:23.184Z" },
 ]

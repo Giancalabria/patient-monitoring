@@ -1,65 +1,105 @@
-from datetime import datetime, timedelta
-from typing import List
+from datetime import timedelta
+from typing import List, Optional, Tuple
+import re
 
 from src.models import AlertSeverity, RuleAlert, RuleDefinition, TelemetryPayload
-from src.services.repository import get_telemetry_history, add_alert
+from src.services.repository import get_telemetry_history, add_alert, get_rules as get_rules_from_db
 
-DEFAULT_RULES: List[RuleDefinition] = [
-    RuleDefinition(
-        rule_id="hr_high_2m",
-        name="HR above 120 for 2 minutes",
-        description="Genera alerta si HR > 120 durante al menos 2 minutos seguidos.",
-        expression="heart_rate > 120 for 2 minutes",
-        severity=AlertSeverity.CRITICAL,
-    ),
-    RuleDefinition(
-        rule_id="spo2_low",
-        name="SpO2 below 90",
-        description="Genera alerta si SpO2 cae por debajo de 90%.",
-        expression="spo2 < 90",
-        severity=AlertSeverity.WARNING,
-    ),
-]
+COMPARATORS = {
+    ">": lambda a, b: a > b,
+    "<": lambda a, b: a < b,
+    ">=": lambda a, b: a >= b,
+    "<=": lambda a, b: a <= b,
+    "==": lambda a, b: a == b,
+    "!=": lambda a, b: a != b,
+}
+
+
+class ZenRuleEngine:
+    @staticmethod
+    def parse_expression(expression: str) -> Tuple[str, str, float, Optional[int]]:
+        expression = expression.strip().lower()
+        duration = None
+        if " for " in expression:
+            condition_part, duration_part = expression.split(" for ", 1)
+            m = re.match(r"(\d+)\s*minute[s]?", duration_part.strip())
+            if m:
+                duration = int(m.group(1))
+            else:
+                raise ValueError(f"Unsupported duration expression: {duration_part}")
+        else:
+            condition_part = expression
+
+        m = re.match(r"^(?P<field>[a-z_]+)\s*(?P<op>>=|<=|>|<|==|!=)\s*(?P<value>[0-9]+(?:\.[0-9]+)?)$", condition_part.strip())
+        if not m:
+            raise ValueError(f"Unsupported rule expression: {expression}")
+
+        field = m.group("field")
+        op = m.group("op")
+        value = float(m.group("value"))
+        return field, op, value, duration
+
+    @classmethod
+    def evaluate_rule(cls, rule: RuleDefinition, payload: TelemetryPayload) -> Optional[RuleAlert]:
+        field, comparator, threshold, duration = cls.parse_expression(rule.expression)
+
+        if not hasattr(payload, field):
+            return None
+
+        reading = getattr(payload, field)
+        if reading is None:
+            return None
+
+        if duration is None:
+            match_result = COMPARATORS[comparator](reading, threshold)
+        else:
+            history = get_telemetry_history(payload.patient_id)
+            window_start = payload.timestamp - timedelta(minutes=duration)
+            relevant_history = [h for h in history if h.timestamp >= window_start and getattr(h, field, None) is not None]
+
+            if not relevant_history:
+                return None
+
+            match_result = all(
+                COMPARATORS[comparator](getattr(h, field), threshold)
+                for h in relevant_history + [payload]
+            )
+
+        if not match_result:
+            return None
+
+        return RuleAlert(
+            alert_id=f"{rule.rule_id}_{payload.patient_id}_{int(payload.timestamp.timestamp())}",
+            patient_id=payload.patient_id,
+            observed_at=payload.timestamp,
+            rule=rule.rule_id,
+            severity=rule.severity,
+            message=f"Rule {rule.name} triggered: {rule.expression} (current={reading})",
+            tags=[rule.rule_id],
+        )
+
+    @classmethod
+    def evaluate_rules(cls, payload: TelemetryPayload) -> List[RuleAlert]:
+        rules = get_rules_from_db()
+        alerts: List[RuleAlert] = []
+        for rule in rules:
+            try:
+                alert = cls.evaluate_rule(rule, payload)
+                if alert:
+                    alerts.append(alert)
+                    add_alert(alert)
+            except ValueError:
+                continue
+        return alerts
+
+    @staticmethod
+    def get_rules() -> List[RuleDefinition]:
+        return get_rules_from_db()
 
 
 def evaluate_rules(payload: TelemetryPayload) -> List[RuleAlert]:
-    triggered = []
-    # Rule: SpO2 low
-    if payload.spo2 < 90:
-        triggered.append(
-            RuleAlert(
-                alert_id=f"spo2_{payload.patient_id}_{int(payload.timestamp.timestamp())}",
-                patient_id=payload.patient_id,
-                observed_at=payload.timestamp,
-                rule="spo2_low",
-                severity=AlertSeverity.WARNING,
-                message=f"SpO2 baja: {payload.spo2}%.",
-                tags=["spo2", "physiological"],
-            )
-        )
-    # Rule: HR > 120 for 2 minutes
-    if payload.heart_rate > 120:
-        history = get_telemetry_history(payload.patient_id)
-        window_start = payload.timestamp - timedelta(minutes=2)
-        high_count = sum(1 for t in history if t.timestamp >= window_start and t.heart_rate > 120)
-        # check if there are at least 3+ points in 2 minutes for simulation
-        if high_count >= 3:
-            triggered.append(
-                RuleAlert(
-                    alert_id=f"hr120_{payload.patient_id}_{int(payload.timestamp.timestamp())}",
-                    patient_id=payload.patient_id,
-                    observed_at=payload.timestamp,
-                    rule="hr_high_2m",
-                    severity=AlertSeverity.CRITICAL,
-                    message=f"HR sostenida >120 por al menos 2 minutos (últimos {high_count} muestras).",
-                    tags=["heart_rate", "critical"],
-                )
-            )
-
-    for a in triggered:
-        add_alert(a)
-    return triggered
+    return ZenRuleEngine.evaluate_rules(payload)
 
 
-def get_rules():
-    return DEFAULT_RULES
+def get_rules() -> List[RuleDefinition]:
+    return ZenRuleEngine.get_rules()

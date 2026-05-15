@@ -10,4 +10,5 @@ dependencies = [
     "pydantic>=2.12.5",
     "pydantic-settings>=2.13.1",
     "uvicorn>=0.41.0",
+    "zen-engine>=0.53.0",
 ]

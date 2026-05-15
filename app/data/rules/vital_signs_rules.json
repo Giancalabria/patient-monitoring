@@ -1,0 +1,231 @@
+{
+  "nodes": [
+    {
+      "id": "input-node",
+      "type": "inputNode",
+      "position": { "x": 100, "y": 200 },
+      "name": "Request"
+    },
+    {
+      "id": "vital-signs-table",
+      "type": "decisionTableNode",
+      "position": { "x": 400, "y": 200 },
+      "name": "Vital Signs Rules",
+      "content": {
+        "hitPolicy": "collect",
+        "inputs": [
+          {
+            "id": "inp_spo2",
+            "name": "SpO2",
+            "field": "spo2",
+            "type": "expression"
+          },
+          {
+            "id": "inp_hr",
+            "name": "Heart Rate",
+            "field": "heart_rate",
+            "type": "expression"
+          },
+          {
+            "id": "inp_temp",
+            "name": "Temperature",
+            "field": "temperature",
+            "type": "expression"
+          },
+          {
+            "id": "inp_rr",
+            "name": "Respiratory Rate",
+            "field": "respiratory_rate",
+            "type": "expression"
+          },
+          {
+            "id": "inp_sys",
+            "name": "Systolic BP",
+            "field": "systolic_bp",
+            "type": "expression"
+          },
+          {
+            "id": "inp_gcs",
+            "name": "GCS",
+            "field": "gcs",
+            "type": "expression"
+          }
+        ],
+        "outputs": [
+          {
+            "id": "out_rule_id",
+            "name": "Rule ID",
+            "field": "rule_id",
+            "type": "expression"
+          },
+          {
+            "id": "out_severity",
+            "name": "Severity",
+            "field": "severity",
+            "type": "expression"
+          },
+          {
+            "id": "out_message",
+            "name": "Message",
+            "field": "message",
+            "type": "expression"
+          },
+          {
+            "id": "out_tags",
+            "name": "Tags",
+            "field": "tags",
+            "type": "expression"
+          },
+          {
+            "id": "out_temporal",
+            "name": "Needs Temporal Check",
+            "field": "needs_temporal_check",
+            "type": "expression"
+          }
+        ],
+        "rules": [
+          {
+            "_id": "rule_spo2_low",
+            "_description": "SpO2 below 90%",
+            "inp_spo2": "< 90",
+            "inp_hr": "",
+            "inp_temp": "",
+            "inp_rr": "",
+            "inp_sys": "",
+            "inp_gcs": "",
+            "out_rule_id": "\"spo2_low\"",
+            "out_severity": "\"warning\"",
+            "out_message": "\"SpO2 baja: \" + string(spo2) + \"%\"",
+            "out_tags": "[\"spo2\", \"physiological\"]",
+            "out_temporal": "false"
+          },
+          {
+            "_id": "rule_hr_high",
+            "_description": "Heart rate above 120 (needs sustained 2min check)",
+            "inp_spo2": "",
+            "inp_hr": "> 120",
+            "inp_temp": "",
+            "inp_rr": "",
+            "inp_sys": "",
+            "inp_gcs": "",
+            "out_rule_id": "\"hr_high_2m\"",
+            "out_severity": "\"critical\"",
+            "out_message": "\"HR sostenida >120 por al menos 2 minutos\"",
+            "out_tags": "[\"heart_rate\", \"critical\"]",
+            "out_temporal": "true"
+          },
+          {
+            "_id": "rule_temp_high",
+            "_description": "Temperature above 39°C (fever)",
+            "inp_spo2": "",
+            "inp_hr": "",
+            "inp_temp": "> 39",
+            "inp_rr": "",
+            "inp_sys": "",
+            "inp_gcs": "",
+            "out_rule_id": "\"temp_high\"",
+            "out_severity": "\"warning\"",
+            "out_message": "\"Temperatura elevada: \" + string(temperature) + \"°C\"",
+            "out_tags": "[\"temperature\", \"physiological\"]",
+            "out_temporal": "false"
+          },
+          {
+            "_id": "rule_temp_critical",
+            "_description": "Temperature above 40.5°C (hyperthermia)",
+            "inp_spo2": "",
+            "inp_hr": "",
+            "inp_temp": "> 40.5",
+            "inp_rr": "",
+            "inp_sys": "",
+            "inp_gcs": "",
+            "out_rule_id": "\"temp_critical\"",
+            "out_severity": "\"critical\"",
+            "out_message": "\"Hipertermia: \" + string(temperature) + \"°C\"",
+            "out_tags": "[\"temperature\", \"critical\"]",
+            "out_temporal": "false"
+          },
+          {
+            "_id": "rule_rr_high",
+            "_description": "Respiratory rate above 30",
+            "inp_spo2": "",
+            "inp_hr": "",
+            "inp_temp": "",
+            "inp_rr": "> 30",
+            "inp_sys": "",
+            "inp_gcs": "",
+            "out_rule_id": "\"rr_high\"",
+            "out_severity": "\"warning\"",
+            "out_message": "\"Frecuencia respiratoria elevada: \" + string(respiratory_rate) + \" rpm\"",
+            "out_tags": "[\"respiratory_rate\", \"physiological\"]",
+            "out_temporal": "false"
+          },
+          {
+            "_id": "rule_bp_critical_high",
+            "_description": "Systolic BP above 180 (hypertensive crisis)",
+            "inp_spo2": "",
+            "inp_hr": "",
+            "inp_temp": "",
+            "inp_rr": "",
+            "inp_sys": "> 180",
+            "inp_gcs": "",
+            "out_rule_id": "\"bp_critical_high\"",
+            "out_severity": "\"critical\"",
+            "out_message": "\"Crisis hipertensiva: PA sistólica \" + string(systolic_bp) + \" mmHg\"",
+            "out_tags": "[\"blood_pressure\", \"critical\"]",
+            "out_temporal": "false"
+          },
+          {
+            "_id": "rule_bp_low",
+            "_description": "Systolic BP below 90 (hypotension)",
+            "inp_spo2": "",
+            "inp_hr": "",
+            "inp_temp": "",
+            "inp_rr": "",
+            "inp_sys": "< 90",
+            "inp_gcs": "",
+            "out_rule_id": "\"bp_low\"",
+            "out_severity": "\"warning\"",
+            "out_message": "\"Hipotensión: PA sistólica \" + string(systolic_bp) + \" mmHg\"",
+            "out_tags": "[\"blood_pressure\", \"physiological\"]",
+            "out_temporal": "false"
+          },
+          {
+            "_id": "rule_gcs_low",
+            "_description": "GCS below 9 (severe impairment)",
+            "inp_spo2": "",
+            "inp_hr": "",
+            "inp_temp": "",
+            "inp_rr": "",
+            "inp_sys": "",
+            "inp_gcs": "< 9",
+            "out_rule_id": "\"gcs_low\"",
+            "out_severity": "\"critical\"",
+            "out_message": "\"GCS bajo: \" + string(gcs)",
+            "out_tags": "[\"gcs\", \"neurological\", \"critical\"]",
+            "out_temporal": "false"
+          }
+        ]
+      }
+    },
+    {
+      "id": "output-node",
+      "type": "outputNode",
+      "position": { "x": 800, "y": 200 },
+      "name": "Response"
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-in-to-table",
+      "sourceId": "input-node",
+      "type": "edge",
+      "targetId": "vital-signs-table"
+    },
+    {
+      "id": "edge-table-to-out",
+      "sourceId": "vital-signs-table",
+      "type": "edge",
+      "targetId": "output-node"
+    }
+  ]
+}

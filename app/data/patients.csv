@@ -1,0 +1,11 @@
+patient_id,first_name,last_name,dni,date_of_birth,sex,blood_type,admission_id,bed_id,bed_type,ward,attending_physician,diagnosis,allergies
+P001,Juan,García,30456789,1965-03-15,M,A+,ADM-2026-001,UTI-A-01,UTI,UTI-A,Dr. Martínez,Infarto agudo de miocardio,Penicilina
+P002,María,López,28123456,1970-08-22,F,O+,ADM-2026-002,UTI-A-02,UTI,UTI-A,Dr. Martínez,Insuficiencia respiratoria aguda,
+P003,Carlos,Rodríguez,35678901,1958-11-03,M,B-,ADM-2026-003,UTI-A-03,UTI,UTI-A,Dra. Fernández,Post-operatorio bypass coronario,Sulfonamidas
+P004,Ana,Martínez,40234567,1982-05-10,F,AB+,ADM-2026-004,UCO-B-01,UCO,UCO-B,Dr. Pérez,Arritmia ventricular,
+P005,Roberto,Sánchez,25890123,1955-01-28,M,O-,ADM-2026-005,UCO-B-02,UCO,UCO-B,Dr. Pérez,Angina inestable,AINEs
+P006,Laura,Fernández,33456789,1975-09-14,F,A-,ADM-2026-006,SALA-C-01,sala_comun,Sala-C,Dra. González,Neumonía bilateral,
+P007,Diego,Morales,38901234,1990-12-01,M,O+,ADM-2026-007,SALA-C-02,sala_comun,Sala-C,Dra. González,Fractura de fémur post-quirúrgico,Látex
+P008,Sofía,Ruiz,42567890,1988-07-19,F,B+,ADM-2026-008,UTI-A-04,UTI,UTI-A,Dr. Martínez,Sepsis de foco pulmonar,
+P009,Miguel,Torres,27345678,1960-04-06,M,A+,ADM-2026-009,NEO-D-01,neonatologia,Neo-D,Dra. Álvarez,Prematurez extrema (padre acompañante),
+P010,Valentina,Díaz,45678901,1995-02-25,F,O+,ADM-2026-010,GUARDIA-01,guardia,Guardia,Dr. Romero,Cetoacidosis diabética,

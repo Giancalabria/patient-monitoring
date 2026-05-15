@@ -1,125 +1,93 @@
-from typing import List, Optional
+import csv
+import os
+from datetime import datetime
+from typing import Dict, List, Optional
 
-from src.models import AlertSeverity, PatientStatus, RuleAlert, RuleDefinition, TelemetryPayload
-from src.db.db import get_db_connection, is_db_available
+from src.models import PatientInfo, PatientStatus, RuleAlert, TelemetryPayload
 
-# In-memory fallback when PostgreSQL cannot connect
-PATIENT_STORE: dict[str, PatientStatus] = {}
-ALERT_STORE: list[RuleAlert] = []
-TELEMETRY_HISTORY: dict[str, list[TelemetryPayload]] = {}
-RULE_STORE: dict[str, RuleDefinition] = {}
+# ── In-memory stores ───────────────────────────────────────────────────
 
-
-def _db_ready() -> bool:
-    return is_db_available()
-
-
-def _to_list(values):
-    return list(values)
+PATIENT_INFO: Dict[str, PatientInfo] = {}
+PATIENT_STORE: Dict[str, PatientStatus] = {}
+ALERT_STORE: List[RuleAlert] = []
+TELEMETRY_HISTORY: Dict[str, List[TelemetryPayload]] = {}
+MONITORED_PATIENTS: Dict[str, str] = {}  # patient_id -> bed_id
 
 
-def initialize_default_rules():
-    from src.models import AlertSeverity
+# ── CSV loader ─────────────────────────────────────────────────────────
 
-    existing = get_rules()
-    if existing:
+def _load_patients_from_csv():
+    """Load patient mock data from CSV and pre-populate the monitoring store."""
+    csv_path = os.path.join(os.path.dirname(__file__), "..", "..", "data", "patients.csv")
+    csv_path = os.path.normpath(csv_path)
+
+    if not os.path.exists(csv_path):
         return
 
-    for rule in [
-        RuleDefinition(
-            rule_id="hr_high_2m",
-            name="HR above 120 for 2 minutes",
-            description="HR > 120 for at least 2 minutes",
-            expression="heart_rate > 120 for 2 minutes",
-            severity=AlertSeverity.CRITICAL,
-        ),
-        RuleDefinition(
-            rule_id="spo2_low",
-            name="SpO2 below 90",
-            description="SpO2 under 90%",
-            expression="spo2 < 90",
-            severity=AlertSeverity.WARNING,
-        ),
-    ]:
-        try:
-            add_rule(rule)
-        except ValueError:
-            pass
+    with open(csv_path, newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            info = PatientInfo(
+                patient_id=row["patient_id"],
+                first_name=row["first_name"],
+                last_name=row["last_name"],
+                dni=row["dni"],
+                date_of_birth=row["date_of_birth"],
+                sex=row["sex"],
+                blood_type=row.get("blood_type") or None,
+                admission_id=row.get("admission_id") or None,
+                bed_id=row.get("bed_id") or None,
+                bed_type=row.get("bed_type") or None,
+                ward=row.get("ward") or None,
+                attending_physician=row.get("attending_physician") or None,
+                diagnosis=row.get("diagnosis") or None,
+                allergies=row.get("allergies") or None,
+            )
+            PATIENT_INFO[info.patient_id] = info
+
+            # Pre-populate monitoring status with no vitals yet
+            PATIENT_STORE[info.patient_id] = PatientStatus(
+                patient_id=info.patient_id,
+                patient_info=info,
+                last_seen=datetime.utcnow(),
+                heart_rate=None,
+                spo2=None,
+                status="stable",
+                bed_id=info.bed_id,
+                ward=info.ward,
+                active_alerts=[],
+            )
 
 
-def get_rules() -> List[RuleDefinition]:
-    if not _db_ready():
-        return _to_list(RULE_STORE.values())
-
-    conn = get_db_connection()
-    with conn.cursor() as cur:
-        cur.execute("SELECT rule_id, name, description, expression, severity FROM rules")
-        rows = cur.fetchall()
-
-    return [
-        RuleDefinition(
-            rule_id=r["rule_id"],
-            name=r["name"],
-            description=r["description"] or "",
-            expression=r["expression"],
-            severity=AlertSeverity(r["severity"]),
-        )
-        for r in rows
-    ]
+# Load on module import
+_load_patients_from_csv()
 
 
-def get_rule(rule_id: str) -> Optional[RuleDefinition]:
-    if not _db_ready():
-        return RULE_STORE.get(rule_id)
+# ── Repository functions ───────────────────────────────────────────────
 
-    conn = get_db_connection()
-    with conn.cursor() as cur:
-        cur.execute(
-            "SELECT rule_id, name, description, expression, severity FROM rules WHERE rule_id = %s",
-            (rule_id,),
-        )
-        row = cur.fetchone()
-    if not row:
-        return None
-    return RuleDefinition(
-        rule_id=row["rule_id"],
-        name=row["name"],
-        description=row["description"] or "",
-        expression=row["expression"],
-        severity=AlertSeverity(row["severity"]),
+def update_patient_telemetry(payload: TelemetryPayload) -> PatientStatus:
+    info = PATIENT_INFO.get(payload.patient_id)
+    existing = PATIENT_STORE.get(payload.patient_id)
+
+    status = PatientStatus(
+        patient_id=payload.patient_id,
+        patient_info=info,
+        last_seen=payload.timestamp,
+        heart_rate=payload.heart_rate,
+        spo2=payload.spo2,
+        systolic_bp=payload.systolic_bp,
+        diastolic_bp=payload.diastolic_bp,
+        respiratory_rate=payload.respiratory_rate,
+        temperature=payload.temperature,
+        gcs=payload.gcs,
+        status="stable",
+        bed_id=payload.bed_id or (existing.bed_id if existing else None),
+        ward=payload.ward or (existing.ward if existing else None),
+        active_alerts=existing.active_alerts if existing else [],
     )
-
-
-def add_rule(rule: RuleDefinition):
-    if get_rule(rule.rule_id) is not None:
-        raise ValueError(f"Rule with id {rule.rule_id} already exists")
-
-    if not _db_ready():
-        RULE_STORE[rule.rule_id] = rule
-        return rule
-
-    conn = get_db_connection()
-    with conn.cursor() as cur:
-        cur.execute(
-            "INSERT INTO rules (rule_id, name, description, expression, severity) VALUES (%s, %s, %s, %s, %s)",
-            (rule.rule_id, rule.name, rule.description, rule.expression, rule.severity.value),
-        )
-    return rule
-
-
-def update_patient_telemetry(payload: TelemetryPayload):
-    if not _db_ready():
-        status = PatientStatus(
-            patient_id=payload.patient_id,
-            last_seen=payload.timestamp,
-            heart_rate=payload.heart_rate,
-            spo2=payload.spo2,
-            status="stable",
-            active_alerts=[],
-        )
-        PATIENT_STORE[payload.patient_id] = status
-        TELEMETRY_HISTORY.setdefault(payload.patient_id, []).append(payload)
-        return status
+    PATIENT_STORE[payload.patient_id] = status
+    TELEMETRY_HISTORY.setdefault(payload.patient_id, []).append(payload)
+    return status
 
     conn = get_db_connection()
     with conn.cursor() as cur:
@@ -146,9 +114,8 @@ def update_patient_telemetry(payload: TelemetryPayload):
     return get_patient_status(payload.patient_id)
 
 
-def get_patient_status(patient_id: str):
-    if not _db_ready():
-        return PATIENT_STORE.get(patient_id)
+def get_patient_status(patient_id: str) -> Optional[PatientStatus]:
+    return PATIENT_STORE.get(patient_id)
 
     conn = get_db_connection()
     with conn.cursor() as cur:
@@ -170,109 +137,70 @@ def get_patient_status(patient_id: str):
     )
 
 
-def list_patients():
-    if not _db_ready():
-        return _to_list(PATIENT_STORE.values())
-
-    conn = get_db_connection()
-    with conn.cursor() as cur:
-        cur.execute("SELECT patient_id, last_seen, heart_rate, spo2, status FROM patients")
-        rows = cur.fetchall()
-
-    return [
-        PatientStatus(
-            patient_id=r["patient_id"],
-            last_seen=r["last_seen"],
-            heart_rate=r["heart_rate"],
-            spo2=r["spo2"],
-            status=r["status"],
-            active_alerts=[],
-        )
-        for r in rows
-    ]
+def list_patients() -> List[PatientStatus]:
+    return list(PATIENT_STORE.values())
 
 
 def add_alert(alert: RuleAlert):
-    if not _db_ready():
-        ALERT_STORE.append(alert)
-        if alert.patient_id in PATIENT_STORE:
-            PATIENT_STORE[alert.patient_id].active_alerts.append(alert)
-        return
-
-    conn = get_db_connection()
-    with conn.cursor() as cur:
-        cur.execute(
-            "INSERT INTO alerts (alert_id, patient_id, observed_at, rule, severity, message, tags) "
-            "VALUES (%s, %s, %s, %s, %s, %s, %s)"
-            "ON CONFLICT (alert_id) DO NOTHING",
-            (
-                alert.alert_id,
-                alert.patient_id,
-                alert.observed_at,
-                alert.rule,
-                alert.severity.value,
-                alert.message,
-                alert.tags,
-            ),
-        )
+    ALERT_STORE.append(alert)
+    if alert.patient_id in PATIENT_STORE:
+        PATIENT_STORE[alert.patient_id].active_alerts.append(alert)
 
 
-def list_alerts(severity: Optional[AlertSeverity] = None):
-    if not _db_ready():
-        results = ALERT_STORE
-        if severity:
-            results = [a for a in ALERT_STORE if a.severity == severity]
-        return results
-
-    conn = get_db_connection()
-    with conn.cursor() as cur:
-        if severity:
-            cur.execute(
-                "SELECT alert_id, patient_id, observed_at, rule, severity, message, tags FROM alerts WHERE severity = %s",
-                (severity.value,),
-            )
-        else:
-            cur.execute("SELECT alert_id, patient_id, observed_at, rule, severity, message, tags FROM alerts")
-        rows = cur.fetchall()
-
-    return [
-        RuleAlert(
-            alert_id=r["alert_id"],
-            patient_id=r["patient_id"],
-            observed_at=r["observed_at"],
-            rule=r["rule"],
-            severity=AlertSeverity(r["severity"]),
-            message=r["message"],
-            tags=r["tags"] or [],
-        )
-        for r in rows
-    ]
+def list_alerts() -> List[RuleAlert]:
+    return ALERT_STORE
 
 
-def get_telemetry_history(patient_id: str):
-    if not _db_ready():
-        return TELEMETRY_HISTORY.get(patient_id, [])
+def get_telemetry_history(patient_id: str) -> List[TelemetryPayload]:
+    return TELEMETRY_HISTORY.get(patient_id, [])
 
-    conn = get_db_connection()
-    with conn.cursor() as cur:
-        cur.execute(
-            "SELECT patient_id, timestamp, heart_rate, spo2, systolic_bp, diastolic_bp, device_type, metadata "
-            "FROM telemetry_history WHERE patient_id = %s ORDER BY timestamp ASC",
-            (patient_id,),
-        )
-        rows = cur.fetchall()
 
-    return [
-        TelemetryPayload(
-            patient_id=r["patient_id"],
-            timestamp=r["timestamp"],
-            heart_rate=r["heart_rate"],
-            spo2=r["spo2"],
-            systolic_bp=r["systolic_bp"],
-            diastolic_bp=r["diastolic_bp"],
-            device_type=r["device_type"],
-            metadata=r["metadata"],
-        )
-        for r in rows
-    ]
+# ── Monitoring activation ──────────────────────────────────────────────
 
+def activate_monitoring(patient_id: str, bed_id: str) -> PatientStatus:
+    """Activate monitoring for a patient at the given bed.
+
+    If the patient already exists in PATIENT_INFO, updates their bed_id.
+    If not, creates a minimal PatientStatus entry so telemetry can be received.
+    """
+    info = PATIENT_INFO.get(patient_id)
+
+    if info:
+        info.bed_id = bed_id
+
+    existing = PATIENT_STORE.get(patient_id)
+
+    status = PatientStatus(
+        patient_id=patient_id,
+        patient_info=info,
+        last_seen=existing.last_seen if existing else datetime.utcnow(),
+        heart_rate=existing.heart_rate if existing else None,
+        spo2=existing.spo2 if existing else None,
+        systolic_bp=existing.systolic_bp if existing else None,
+        diastolic_bp=existing.diastolic_bp if existing else None,
+        respiratory_rate=existing.respiratory_rate if existing else None,
+        temperature=existing.temperature if existing else None,
+        gcs=existing.gcs if existing else None,
+        status=existing.status if existing else "stable",
+        bed_id=bed_id,
+        ward=existing.ward if existing else None,
+        active_alerts=existing.active_alerts if existing else [],
+    )
+    PATIENT_STORE[patient_id] = status
+    MONITORED_PATIENTS[patient_id] = bed_id
+    return status
+
+
+def deactivate_monitoring(patient_id: str) -> bool:
+    """Stop monitoring a patient. Returns True if the patient was being monitored."""
+    removed = MONITORED_PATIENTS.pop(patient_id, None)
+    if removed is None:
+        return False
+    # Remove from the active patient store so they no longer appear in dashboards
+    PATIENT_STORE.pop(patient_id, None)
+    return True
+
+
+def is_monitoring_active(patient_id: str) -> bool:
+    """Check if a patient is currently being monitored."""
+    return patient_id in MONITORED_PATIENTS
